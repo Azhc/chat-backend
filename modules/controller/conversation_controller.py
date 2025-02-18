@@ -1,43 +1,15 @@
 from fastapi import APIRouter, Query, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
-
-# 假设使用之前创建的HttpClient
 from utils.http_client import HttpClient
+from modules.models.conversation_model import *
 
 router = APIRouter()
 
 # 初始化HTTP客户端（根据实际后端服务地址配置）
 backend_client = HttpClient(base_url="http://10.201.1.46/v1")
 
-# 定义数据模型
-class ConversationInputs(BaseModel):
-    # 根据实际输入参数结构定义
-    pass
-
-class Conversation(BaseModel):
-    id: str
-    name: str
-    inputs: dict  # 或使用ConversationInputs如果结构明确
-    status: str
-    introduction: str
-    created_at: datetime
-    updated_at: datetime
-
-class ConversationsResponse(BaseModel):
-    data: List[Conversation]
-    has_more: bool
-    limit: int
-
-# 排序字段验证
-VALID_SORT_FIELDS = {
-    "created_at", "-created_at",
-    "updated_at", "-updated_at"
-}
-
-
-ConversationController = APIRouter();
+ConversationController = APIRouter()
 
 @ConversationController.get("/conversations", response_model=ConversationsResponse)
 async def get_conversations(
@@ -94,11 +66,43 @@ async def get_conversations(
             "created_at": item["created_at"],
             "updated_at": item["updated_at"]
         }
-        for item in backend_data.get("data", [])
     ]
-
     return {
         "data": conversations,
         "has_more": backend_data.get("has_more", False),
         "limit": backend_data.get("limit", limit)
     }
+
+
+@ConversationController.post("/conversations/{conversation_id}/name", response_model=Conversation)
+async def rename_conversation(
+    conversation_id: str,
+    request: ConversationRenameRequest
+):
+        """
+        更新会话名称
+        - 自动生成或手动指定会话名称
+        - 用户标识需与会话所属用户匹配
+        """
+        # 构建请求数据
+        payload = {
+            "name": request.name,
+            "auto_generate": request.auto_generate,
+            "user": 'user_b3ae30f2-ccfc-4af2-8338-e47bbfb11a76:9af18869-6865-49c5-89f0-b46fce1ebe28'
+        }
+    
+        # 调用后端服务
+        response = backend_client.post(
+            endpoint=f"/conversations/{conversation_id}/name",
+            json_data=payload,
+            headers={'Authorization':'Bearer app-fFiwzWar9N3Akli9ys53vK9A'}
+        )
+    
+        if not response.get("success"):
+            raise HTTPException(
+                status_code=502,
+                detail=f"后端服务请求失败: {response.get('error', '未知错误')}"
+            )
+    
+        # 转换并返回标准响应格式
+        return response["data"]
