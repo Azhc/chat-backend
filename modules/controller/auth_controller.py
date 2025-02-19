@@ -1,0 +1,61 @@
+from fastapi import APIRouter, Query, HTTPException
+from typing import Optional
+from datetime import datetime
+from utils.http_client import HttpClient
+from utils.response_util import ResponseUtil
+from modules.models.auth_model import *
+from config.env import SsoConfig
+import uuid,base64
+
+AuthController = APIRouter()
+
+
+auth_token =f"Basic {base64.b64encode(f'{SsoConfig.client_id}:{SsoConfig.client_secret}'.encode()).decode()}"
+
+userCenter_Client = HttpClient(base_url=SsoConfig.sso_url+'/SCPG')
+
+# 前端返回授权码 调用用户中心接口 获取用户信息 并且返回用户token
+@AuthController.get("/auth/getUserByCode",response_model=GetUserByCodeModel)
+async def getUserByCode(
+    code:str
+):
+    """
+    通过用户中心获取用户信息
+    """
+
+    #获取token
+    token_data = {
+    "grant_type": "authorization_code",
+    "code": code,
+    "redirect_uri": SsoConfig.redirect_url
+    }
+
+    token_response = userCenter_Client.post(
+        endpoint="/oauth2/token",
+        content_type="form",
+        data=token_data,
+        headers={"Authorization":auth_token}
+    )
+    # 检查token响应状态
+    access_token = token_response.get("data", {}).get("access_token")
+    if token_response.get("success",False) is not True or not access_token:
+        print(token_response)
+        return ResponseUtil.error(msg='获取用户中心token失败')
+    
+    # 获取用户账号
+    user_response = userCenter_Client.get(
+        endpoint="/userinfo",
+        headers={"Authorization":f"Bearer {access_token}"}
+    )
+
+    username = user_response.get("data", {}).get("sub")
+    print(user_response.get("success",False))
+    print(username)
+    if user_response.get("success",False) is not True or not username:
+        print(user_response)
+        return ResponseUtil.error(msg='获取用户信息失败');
+
+
+    #返回token
+    return ResponseUtil.success(data={"userName":username})
+

@@ -6,6 +6,9 @@ class ConversationInputs(BaseModel):
     pass
 
 class Conversation(BaseModel):
+    """
+    对话详细数据
+    """
     id: str
     name: str
     inputs: dict
@@ -20,9 +23,12 @@ class ConversationsResponse(BaseModel):
     limit: int
     
 class ConversationRenameRequest(BaseModel):
-        name: Optional[str] = None
-        auto_generate: bool = False
-        user: str
+    """
+    重命名请求
+    """
+    name: Optional[str] = None
+    auto_generate: bool = False
+    user: str
 
 VALID_SORT_FIELDS = {
     "created_at", "-created_at",

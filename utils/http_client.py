@@ -94,7 +94,6 @@ class HttpClient:
         url = f"{self.base_url}/{endpoint.lstrip('/')}" if self.base_url else endpoint
         # 确保headers是字典类型
         headers = {**self.default_headers, **(headers or {})}
-        
         timeout = timeout or self.timeout
         result_template = {
             "success": False,
