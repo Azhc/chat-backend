@@ -28,7 +28,6 @@ class ConversationRenameRequest(BaseModel):
     """
     name: Optional[str] = None
     auto_generate: bool = False
-    user: str
 
 VALID_SORT_FIELDS = {
     "created_at", "-created_at",

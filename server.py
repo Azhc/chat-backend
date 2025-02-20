@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from config.env import AppConfig
 from modules.controller.conversation_controller import ConversationController
 from modules.controller.auth_controller import AuthController
+from modules.controller.chat_controller import ChatController
 from contextlib import asynccontextmanager
-
+from exceptions.handle import handle_exception
 
 
 
@@ -20,11 +21,15 @@ app=FastAPI(
             lifespan=lifespan);
 
 
+# 加载全局异常处理方法
+handle_exception(app)
+
 
 #路由列表
 controller_list = [
     {'router': ConversationController, 'tags': ['会话模块']},
     {'router': AuthController, 'tags': ['认证模块']},
+    {'router': ChatController, 'tags': ['对话模块']},
 ]
 
 # 添加所有路由列表

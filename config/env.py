@@ -15,7 +15,7 @@ class SsoConfig(BaseSettings):
     client_secret:str='07f9c099239149bea7e4f58795017d30'
     redirect_url:str='http://10.2.19.61:8001/auth/getUserByCode'
 
-class DifyConfigs(BaseSettings):
+class DifyConfig(BaseSettings):
     """
     dify相关配置
     """    
@@ -33,6 +33,16 @@ class AppConfig(BaseSettings):
     app_port: int = 8001
     app_version: str = '1.0.0'
     app_reload: bool = True
+
+
+class JwtConfig(BaseSettings):
+    """
+    Jwt配置
+    """
+
+    jwt_secret_key: str = 'b01c66dc2c58dc6a0aabfe2144256be36226de378bf87f72c0c795dda67f4d55'
+    jwt_algorithm: str = 'HS256'
+    jwt_expire_minutes: int = 7*24*60
 
 
 
@@ -60,6 +70,14 @@ class GetConfig:
         """
         # 实例化应用配置模型
         return SsoConfig()
+    
+    @lru_cache()
+    def get_jwt_config(self):
+        """
+        获取单点配置
+        """
+        # 实例化应用配置模型
+        return JwtConfig()
     
     @staticmethod
     def parse_cli_args():
@@ -100,3 +118,5 @@ get_config = GetConfig();
 AppConfig = get_config.get_app_config()
 #单点配置获取
 SsoConfig =get_config.get_sso_config()
+#jwt配置获取
+JwtConfig = get_config.get_jwt_config()

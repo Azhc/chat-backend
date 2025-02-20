@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Query, HTTPException
+import uuid
+from fastapi import APIRouter, Query, HTTPException, Depends, Request
 from typing import Optional
 from datetime import datetime
 from utils.http_client import HttpClient
 from utils.response_util import ResponseUtil
 from modules.models.conversation_model import *
-import uuid
+from modules.service.auth_service import AuthService
+from exceptions.exception import ServiceException
 
 
-router = APIRouter()
+
 
 # 初始化HTTP客户端（根据实际后端服务地址配置）
 backend_client = HttpClient(
@@ -15,15 +17,15 @@ backend_client = HttpClient(
     default_headers={"Authorization": "Bearer app-fFiwzWar9N3Akli9ys53vK9A"},
 )
 
-ConversationController = APIRouter()
+ConversationController = APIRouter(dependencies=[Depends(AuthService.get_current_user)],prefix="/conversations")
 
 
-@ConversationController.get("/conversations", response_model=ConversationsResponse)
+@ConversationController.get("/list", response_model=ConversationsResponse)
 async def get_conversations(
-    user: str = Query(..., description="用户标识，需保证应用内唯一"),
     last_id: Optional[str] = Query(None, description="最后一条记录ID"),
-    limit: int = Query(20, gt=0, le=100, description="返回记录数，1-100"),
+    limit: int=Query(default=20),
     sort_by: str = Query("-updated_at", description="排序字段"),
+    current_user:str=Depends(AuthService.get_current_user)
 ):
     """
     获取用户会话列表
@@ -33,30 +35,33 @@ async def get_conversations(
 
     # 验证排序字段
     if sort_by not in VALID_SORT_FIELDS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"无效的排序字段，可选值：{', '.join(VALID_SORT_FIELDS)}",
-        )
+        return ResponseUtil.bad_request(msg='排序字段错误')
+    
+    if type(limit) is not int:
+        return ResponseUtil.bad_request(msg='记录数为int')
+    
+    if limit<0 or limit>100:
+        return ResponseUtil.bad_request(msg='记录数为0-100之间')
+    
+    
 
     # 构造查询参数
-    params = {"user": user, "last_id": last_id, "limit": limit, "sort_by": sort_by}
+    params = {"user": current_user, "last_id": last_id, "limit": limit, "sort_by": sort_by}
 
     # 调用后端服务
-    response = backend_client.get(
+    response = await backend_client.async_get(
         endpoint="/conversations",
         params={k: v for k, v in params.items() if v is not None},
     )
 
     if not response["success"]:
-        raise HTTPException(
-            status_code=502, detail=f"后端服务请求失败: {response['error']}"
-        )
+        print(response['error']);
+        raise ServiceException(message="请求后端服务失败")
 
 
     # 处理响应数据
     backend_data = response["data"]
-    
-    print(backend_data)
+
 
     # 转换数据格式
     # 转换数据格式（添加异常捕获）
@@ -72,17 +77,22 @@ async def get_conversations(
             "updated_at": item["updated_at"],  # 必需字段
         }
         conversations.append(conv)
-    return {
+
+
+    conversation_data = {
         "data": conversations,
         "has_more": backend_data.get("has_more", False),
         "limit": backend_data.get("limit", limit),
     }
+    return ResponseUtil.success(data=conversation_data)
 
 
 @ConversationController.post(
-    "/conversations/{conversation_id}/name", response_model=Conversation
+    "/{conversation_id}/name", response_model=Conversation
 )
-async def rename_conversation(conversation_id: str, request: ConversationRenameRequest):
+async def rename_conversation(conversation_id: str, 
+                              request: ConversationRenameRequest,
+                              current_user:str=Depends(AuthService.get_current_user)):
     """
     更新会话名称
     - 自动生成或手动指定会话名称
@@ -93,20 +103,23 @@ async def rename_conversation(conversation_id: str, request: ConversationRenameR
     try:
         uuid_obj = uuid.UUID(conversation_id, version=4)
     except ValueError:
-        return ResponseUtil.bad_request(msg="对话ID格式错误")
+        raise ServiceException(message="对话ID格式错误")
+
+    if request.auto_generate is False and (not request.name or request.name is None or request.name=='' ):
+        raise ServiceException(message="自动生成为false时，对话名称不能为空")
+
 
     # 构建请求数据
     payload = request.model_dump(exclude_unset=True)
+    payload['user']=current_user;
 
     # 调用后端服务
-    response = backend_client.post(
+    response =  await backend_client.async_post(
         endpoint=f"/conversations/{conversation_id}/name", json_data=payload
     )
     print(response)
     if not response.get("success"):
-        return ResponseUtil.error(
-            msg=response.get("data", "接口请求失败").get("message", "错误")
-        )
-
-        # 转换并返回标准响应格式
+        raise ServiceException(message=response.get("data", "接口请求失败").get("message", "错误"))
+    
+    # 转换并返回标准响应格式
     return ResponseUtil.success(data=response["data"])

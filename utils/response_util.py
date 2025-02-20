@@ -30,6 +30,7 @@ class ResponseUtil:
         if data is not None:
             result['data'] = data
 
+        result.update({'success': True, 'time': datetime.now()})
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 

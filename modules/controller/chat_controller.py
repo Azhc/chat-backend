@@ -1,0 +1,149 @@
+from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+from typing import Optional
+from datetime import datetime, timedelta
+from utils.http_client import HttpClient
+from utils.response_util import ResponseUtil
+from modules.models.chat_model import *
+from config.env import SsoConfig, JwtConfig
+from modules.service.auth_service import AuthService
+import uuid, base64
+import httpx, json
+
+ChatController = APIRouter(
+    prefix="/chat-messages", dependencies=[Depends(AuthService.get_current_user)]
+)
+
+
+# 初始化HTTP客户端（根据实际后端服务地址配置）
+backend_client = HttpClient(
+    base_url="http://10.201.1.46/v1",
+    default_headers={"Authorization": "Bearer app-fFiwzWar9N3Akli9ys53vK9A"},
+)
+
+
+
+@ChatController.post("/chat")
+async def chat(
+    request: ChatRequest,
+    current_user: str = Depends(AuthService.get_current_user)
+):
+    """
+    流式请求对话接口 并且流式返回数据
+    """
+
+    
+
+
+    target_payload = request.model_dump()
+    target_payload.update({
+        "user": current_user,
+        "response_mode": "streaming"
+    })
+
+    async def stream_generator():
+        try:
+            async with backend_client.async_stream(
+                method="POST",
+                endpoint="/chat-messages",
+                json_data=target_payload,
+                headers={"Content-Type": "application/json"},
+            ) as response:
+                # 处理非200状态码
+                if response.status_code != 200:
+                    error = await response.aread()
+                    error_msg = json.dumps({"error": f"Backend error: {error.decode()}"})
+                    yield f"data: {error_msg}\n\n".encode()
+                    return
+
+                # 流式数据传输
+                try:
+                    async for chunk in response.aiter_bytes():
+                        # 检查连接状态
+                        if response.is_closed:
+                            break
+                        yield chunk
+                except httpx.RemoteProtocolError as e:
+                    # 处理连接意外关闭
+                    error_msg = json.dumps({"error": f"Connection closed: {str(e)}"})
+                    yield f"data: {error_msg}\n\n".encode()
+                except Exception as e:
+                    error_msg = json.dumps({"error": f"Stream error: {str(e)}"})
+                    yield f"data: {error_msg}\n\n".encode()
+
+        except httpx.HTTPError as e:
+            # 处理连接级错误
+            error_msg = json.dumps({"error": f"Connection failed: {str(e)}"})
+            yield f"data: {error_msg}\n\n".encode()
+
+    return StreamingResponse(
+        content=stream_generator(),
+        media_type="text/event-stream"
+    )
+
+
+
+
+
+
+
+
+# @ChatController.post("/chat")
+# async def chat(
+#     request: ChatRequest, current_user: str = Depends(AuthService.get_current_user)
+# ):
+#     """
+#     流式请求对话接口，动态返回流式数据或JSON响应
+#     """
+#     target_payload = request.model_dump()
+#     target_payload.update({"user": current_user, "response_mode": "streaming"})
+
+#     try:
+#         # 使用异步客户端发送流式请求
+#         async with backend_client.async_stream(
+#             method="POST",
+#             endpoint="/chat-messages",
+#             json_data=target_payload,
+#             headers={"Content-Type": "application/json"}
+#         ) as response:
+#             # 获取响应内容类型
+#             content_type = response.headers.get("Content-Type", "")
+#             print(content_type)
+
+#             # 处理JSON响应
+#             if "application/json" in content_type:
+#                 # 读取完整的JSON响应数据
+#                 json_data = await response.aread()
+
+#                 # 尝试解析 JSON 数据并返回错误
+#                 try:
+#                     json_response = json.loads(json_data)
+#                     return ResponseUtil.error(msg=json_response)
+#                 except json.JSONDecodeError:
+#                     return ResponseUtil.error(msg="Invalid JSON received")
+
+#             else:
+#                 # 返回StreamingResponse来处理流式数据
+#                 return StreamingResponse(
+#                     content=stream_generator(response),
+#                     media_type="text/event-stream"
+#                 )
+
+#     except httpx.HTTPError as e:
+#         # 处理连接级错误
+#         return ResponseUtil.error(msg=str(e))
+    
+
+#                 # 如果返回的是流式数据，返回StreamingResponse
+# async def stream_generator(response):
+#       try:
+#           # 使用流式响应，每次获取一个chunk
+#           async for chunk in response.aiter_bytes():
+#               yield chunk
+#       except httpx.RemoteProtocolError as e:
+#           # 处理连接意外关闭
+#           error_msg = json.dumps({"error": f"Connection closed: {str(e)}"})
+#           yield f"data: {error_msg}\n\n".encode()
+#       except Exception as e:
+#           error_msg = json.dumps({"error": f"Stream error: {str(e)}"})
+#           yield f"data: {error_msg}\n\n".encode()
