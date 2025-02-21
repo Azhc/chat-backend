@@ -10,16 +10,22 @@ from modules.service.auth_service import AuthService
 import uuid, base64
 import httpx, json
 
+from config.env import DifyConfig
+
+
+
+
+backend_client = HttpClient(
+    base_url=DifyConfig.dify_api_url,
+    default_headers={"Authorization": f"Bearer {DifyConfig.dify_api_key}"},
+)
+
 ChatController = APIRouter(
     prefix="/chat-messages", dependencies=[Depends(AuthService.get_current_user)]
 )
 
 
-# 初始化HTTP客户端（根据实际后端服务地址配置）
-backend_client = HttpClient(
-    base_url="http://10.201.1.46/v1",
-    default_headers={"Authorization": "Bearer app-fFiwzWar9N3Akli9ys53vK9A"},
-)
+
 
 
 
@@ -31,9 +37,6 @@ async def chat(
     """
     流式请求对话接口 并且流式返回数据
     """
-
-    
-
 
     target_payload = request.model_dump()
     target_payload.update({

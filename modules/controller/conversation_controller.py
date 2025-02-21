@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Query, HTTPException, Depends, Request
+from fastapi import APIRouter, Query, HTTPException, Depends, Request,Path
 from typing import Optional
 from datetime import datetime
 from utils.http_client import HttpClient
@@ -7,14 +7,14 @@ from utils.response_util import ResponseUtil
 from modules.models.conversation_model import *
 from modules.service.auth_service import AuthService
 from exceptions.exception import ServiceException
+from config.env import DifyConfig
 
 
 
 
-# 初始化HTTP客户端（根据实际后端服务地址配置）
 backend_client = HttpClient(
-    base_url="http://10.201.1.46/v1",
-    default_headers={"Authorization": "Bearer app-fFiwzWar9N3Akli9ys53vK9A"},
+    base_url=DifyConfig.dify_api_url,
+    default_headers={"Authorization": f"Bearer {DifyConfig.dify_api_key}"},
 )
 
 ConversationController = APIRouter(dependencies=[Depends(AuthService.get_current_user)],prefix="/conversations")
@@ -117,9 +117,69 @@ async def rename_conversation(conversation_id: str,
     response =  await backend_client.async_post(
         endpoint=f"/conversations/{conversation_id}/name", json_data=payload
     )
-    print(response)
     if not response.get("success"):
         raise ServiceException(message=response.get("data", "接口请求失败").get("message", "错误"))
     
     # 转换并返回标准响应格式
     return ResponseUtil.success(data=response["data"])
+
+
+
+@ConversationController.get("/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: str = Path(..., description="对话ID"),
+    first_id: Optional[str]=Query(default=None,description='当前页第一条聊天记录的，默认 null'),
+    limit: Optional[int] = Query(default=20,description="一次返回多少条对话信息"),
+    current_user:str=Depends(AuthService.get_current_user)
+):
+    """
+    获取对话消息列表
+    - 默认返回最近的20条
+    - 支持分页和排序
+    """
+    try:
+    # 验证对话ID是否为UUID格式
+        try:
+            uuid_obj = uuid.UUID(conversation_id, version=4)
+        except ValueError:
+            raise ServiceException(message="对话ID格式错误")
+        
+        # 处理空字符串场景
+        if first_id == "":  # 显式处理空字符串
+            first_id = None
+
+        if first_id is not None:
+            try:
+                uuid_obj = uuid.UUID(first_id, version=4)
+            except ValueError:
+                raise ServiceException(message="消息ID格式错误")  
+
+        
+        # 构造查询参数
+        params = {"user": current_user, "first_id": first_id, "limit": limit,"conversation_id":conversation_id}
+
+        try:
+            # 调用后端服务
+            response = await backend_client.async_get(
+                endpoint="/messages",
+                params={k: v for k, v in params.items() if v is not None},
+            )
+        except Exception as e:
+            raise ServiceException(message="服务暂时不可用，请稍后重试") from e
+
+
+        if not response["success"]:
+            # 修改此处代码，处理 data 可能非字典的情况
+            error_data = response.get("data", {})
+            error_message = error_data.get("message", "错误") if isinstance(error_data, dict) else str(error_data)[:100]
+
+            raise ServiceException(message=f"请求后端服务失败: {error_message}")
+        
+            # 转换并返回标准响应格式
+        return ResponseUtil.success(data=response.get("data",[]))
+    
+    except ServiceException as se:
+        # 已知业务异常直接抛出
+        raise
+    except Exception as unhandled_ex:
+        raise ServiceException(message="系统发生意外错误") from unhandled_ex

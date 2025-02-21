@@ -16,9 +16,12 @@ class SsoConfig(BaseSettings):
     redirect_url:str='http://10.2.19.61:8001/auth/getUserByCode'
 
 class DifyConfig(BaseSettings):
+
     """
     dify相关配置
     """    
+    dify_api_url:str='http://10.201.1.46/v1'
+    dify_api_key:str='app-fFiwzWar9N3Akli9ys53vK9A'
     pass;
 
 
@@ -79,6 +82,14 @@ class GetConfig:
         # 实例化应用配置模型
         return JwtConfig()
     
+    @lru_cache()
+    def get_dify_config(self):
+        """
+        获取单点配置
+        """
+        # 实例化应用配置模型
+        return DifyConfig()
+    
     @staticmethod
     def parse_cli_args():
         """
@@ -120,3 +131,5 @@ AppConfig = get_config.get_app_config()
 SsoConfig =get_config.get_sso_config()
 #jwt配置获取
 JwtConfig = get_config.get_jwt_config()
+#Dify配置获取
+DifyConfig = get_config.get_dify_config()
