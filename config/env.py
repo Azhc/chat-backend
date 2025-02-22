@@ -99,17 +99,18 @@ class GetConfig:
             # 使用uvicorn启动时，命令行参数需要按照uvicorn的文档进行配置，无法自定义参数
             pass
         else:
-            # 使用argparse定义命令行参数
+            #本地运行使用 --env 来指定文件 docker运行时候通过env文件的映射来更改运行
             parser = argparse.ArgumentParser(description='命令行参数')
             parser.add_argument('--env', type=str, default='', help='运行环境')
             # 解析命令行参数
             args = parser.parse_args()
             # 设置环境变量，如果未设置命令行参数，默认APP_ENV为dev
-            os.environ['APP_ENV'] = args.env if args.env else 'dev'
+            os.environ['APP_ENV'] = args.env if args.env else ''
         # 读取运行环境
         run_env = os.environ.get('APP_ENV', '')
+        print(f'使用.env.{run_env}文件运行')
         # 运行环境未指定时默认加载.env.dev
-        env_file = '.env.dev'
+        env_file = '.env'
         # 运行环境不为空时按命令行参数加载对应.env文件
         if run_env != '':
             env_file = f'.env.{run_env}'
