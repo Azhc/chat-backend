@@ -38,6 +38,7 @@ async def getUserByCode(code: str):
         data=token_data,
         headers={"Authorization": auth_token},
     )
+    print(f"请求用户中心token结果：{token_response}");
     # 检查token响应状态
     access_token = token_response.get("data", {}).get("access_token")
     if token_response.get("success", False) is not True or not access_token:
@@ -50,8 +51,8 @@ async def getUserByCode(code: str):
     )
 
     username = user_response.get("data", {}).get("sub")
-    print(user_response.get("success", False))
-    print(username)
+    print(f"获取用户信息结果：{user_response}");
+    print(f"用户名称：{username}")
     if user_response.get("success", False) is not True or not username:
         print(user_response)
         return ResponseUtil.error(msg="获取用户信息失败")

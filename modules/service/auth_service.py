@@ -23,7 +23,7 @@ class AuthService():
 
 
     @classmethod
-    async def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
+    async def create_access_token(cls,data: dict, expires_delta: Union[timedelta, None] = None):
         """
         根据登录信息创建当前用户token
 
