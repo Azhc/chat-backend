@@ -9,11 +9,16 @@ from fastapi import Depends, HTTPException, status,Request
 from utils.response_util import ResponseUtil
 from jwt.exceptions import InvalidTokenError
 from exceptions.exception import AuthException
-
+from utils.http_client import HttpClient
+from config.env import SsoConfig
 
 
 # OAuth2 方案
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/getUserByCode")
+
+
+# 用户中心
+userCenter_Client = HttpClient(base_url=SsoConfig.sso_url+'/ipmp-cloud/auth/v1/admin/realm/SCPG')
 
 
 class AuthService():
@@ -41,19 +46,40 @@ class AuthService():
         return encoded_jwt
     
 
-    async def get_current_user( request: Request = Request,token: str = Depends(oauth2_scheme)):
+    async def get_current_user(request: Request = Request,token: str = Depends(oauth2_scheme)):
         """
         校验token
         """
         try:
+            
             if token.startswith('Bearer'):
                 token = token.split(' ')[1]
-            payload = jwt.decode(token, JwtConfig.jwt_secret_key, algorithms=[JwtConfig.jwt_algorithm])
-            user_id: str = payload.get('user_id')
-            if not user_id:
-                raise AuthException(data='', message='用户token不合法')
-            else:
-                return user_id
+            try:
+                # 调用用户中心获取用户信息接口设置用户信息
+                user_response = await userCenter_Client.async_get(
+                    endpoint="/current-user", headers={"Authorization": f"Bearer {token}"}
+                )
+            except Exception as e:
+                print(f"用户中心请求异常: {str(e)}")
+                raise AuthException(message="用户服务暂不可用")
+            
+            # 业务状态校验
+            if not user_response.get("success") or not user_response.get("data", {}).get("success",False):
+                error_msg = user_response.get("error", "未返回错误信息")
+                print(f"业务逻辑失败: {error_msg} | 完整响应: {user_response}")
+                raise AuthException(message="用户信息验证未通过")
+
+            # 用户数据提取
+            user_data = user_response.get('data',{}).get('data',{})
+            if not isinstance(user_data, dict) or not user_data.get("userName"):
+                print(f"用户数据缺失关键字段: {user_data}")
+                raise AuthException(message="用户信息不完整")
+            
+            user_id = user_data.get('userName','');
+            
+            print(user_id);
+            return user_id
+
         except InvalidTokenError:
             raise AuthException(data='', message='用户登陆已失效')
 

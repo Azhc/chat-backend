@@ -1,20 +1,45 @@
 from fastapi import FastAPI, Request
-from fastapi.exceptions import HTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
 from exceptions.exception import (
     AuthException,
     LoginException,
     ModelValidatorException,
     PermissionException,
     ServiceException,
-    ServiceWarning,
+    ServiceWarning, 
 )
 from utils.response_util import  ResponseUtil
+from starlette import status
 
 
 def handle_exception(app: FastAPI):
     """
     全局异常处理
     """
+
+
+
+    # 处理fastapi相关错误 例如404之类的
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            return ResponseUtil.not_found(msg="资源不存在")
+        # 其他HTTP异常可统一处理或返回默认错误
+        return ResponseUtil.error(msg=exc.detail)
+    
+
+    # 处理参数验证异常
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        errors = exc.errors()
+        error_details = []
+        for error in errors:
+            loc = ".".join(map(str, error['loc'])).replace("body.", "")
+            msg = error['msg']
+            error_details.append(f"{loc}: {msg}")
+        print(error_details);
+        return ResponseUtil.bad_request(msg="参数错误",data=error_details)
 
     # 自定义token检验异常
     @app.exception_handler(AuthException)
@@ -46,6 +71,8 @@ def handle_exception(app: FastAPI):
     @app.exception_handler(ServiceWarning)
     async def service_warning_handler(request: Request, exc: ServiceWarning):
         return ResponseUtil.failure(data=exc.data, msg=exc.message)
+
+
 
 
     # 处理其他异常

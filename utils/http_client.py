@@ -134,6 +134,56 @@ class HttpClient:
             timeout=timeout
         )
 
+
+
+    def delete(
+    self,
+    endpoint: str,
+    params: Optional[Dict[str, Any]] = None,
+    data: Optional[Dict[str, Any]] = None,
+    json_data: Optional[Dict[str, Any]] = None,
+    headers: Optional[Dict[str, str]] = None,
+    content_type: str = "json",
+    timeout: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        同步DELETE请求
+        """
+        return self._request(
+            method="DELETE",
+            endpoint=endpoint,
+            params=params,
+            data=data,
+            json_data=json_data,
+            headers=headers,
+            content_type=content_type,
+            timeout=timeout
+        )
+
+    async def async_delete(
+        self,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        json_data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        content_type: str = "json",
+        timeout: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        异步DELETE请求
+        """
+        return await self._async_request(
+            method="DELETE",
+            endpoint=endpoint,
+            params=params,
+            data=data,
+            json_data=json_data,
+            headers=headers,
+            content_type=content_type,
+            timeout=timeout
+        )    
+
     @contextmanager
     def stream(
         self,

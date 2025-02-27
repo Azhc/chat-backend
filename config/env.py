@@ -10,7 +10,7 @@ class SsoConfig(BaseSettings):
     """
     单点相关配置
     """
-    sso_url:str='https://testjauth.scpgroup.com.cn'
+    sso_url:str='https://testjapi.scpgroup.com.cn'
     client_id:str='OAUTH_baixiaosheng_test'
     client_secret:str='07f9c099239149bea7e4f58795017d30'
     redirect_url:str='http://10.2.19.61:8001/auth/getUserByCode'

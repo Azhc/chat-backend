@@ -21,9 +21,9 @@ app=FastAPI(
             lifespan=lifespan);
 
 
+
 # 加载全局异常处理方法
 handle_exception(app)
-
 
 #路由列表
 controller_list = [
@@ -33,7 +33,7 @@ controller_list = [
 ]
 
 # 添加所有路由列表
+
 for controller in controller_list:
     app.include_router(router=controller.get('router'), tags=controller.get('tags'))
-
 

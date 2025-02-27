@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi import APIRouter, Query, HTTPException, Depends,Path
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import datetime, timedelta
@@ -9,6 +9,7 @@ from config.env import SsoConfig, JwtConfig
 from modules.service.auth_service import AuthService
 import uuid, base64
 import httpx, json
+from exceptions.exception import ServiceException
 
 from config.env import DifyConfig
 
@@ -86,6 +87,53 @@ async def chat(
 
 
 
+@ChatController.get("/{message_id}/suggested")
+async def chat(
+    message_id: str = Path(..., description="对话ID"),
+    current_user:str=Depends(AuthService.get_current_user)
+):
+    """
+    获取对话建议，根据messageID获取相应的对话建议
+    """
+
+    try:
+        # 验证对话ID是否为UUID格式
+            try:
+                uuid_obj = uuid.UUID(message_id, version=4)
+            except ValueError:
+                raise ServiceException(message="消息ID格式错误")
+            
+
+
+            
+            # 构造查询参数
+            params = {"user": current_user}
+
+            try:
+                # 调用后端服务
+                response = await backend_client.async_get(
+                    endpoint=f"/messages/{message_id}/suggested",
+                    params={k: v for k, v in params.items() if v is not None},
+                )
+            except Exception as e:
+                raise ServiceException(message="服务暂时不可用，请稍后重试") from e
+
+
+            if not response["success"]:
+                error_data = response.get("data", {})
+                error_message = error_data.get("message", "错误") if isinstance(error_data, dict) else str(error_data)[:100]
+
+                raise ServiceException(message=f"请求后端服务失败: {error_message}")
+            
+                # 转换并返回标准响应格式
+            return ResponseUtil.success(data=response.get("data",[]))
+        
+    except ServiceException as se:
+        # 已知业务异常直接抛出
+        raise
+
+    except Exception as unhandled_ex:
+        raise ServiceException(message="系统发生意外错误") from unhandled_ex
 
 
 

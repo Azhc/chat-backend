@@ -33,6 +33,9 @@ async def get_conversations(
     - 支持分页和排序
     """
 
+    if limit is None or limit =='':
+        raise 
+
     # 验证排序字段
     if sort_by not in VALID_SORT_FIELDS:
         return ResponseUtil.bad_request(msg='排序字段错误')
@@ -112,7 +115,7 @@ async def rename_conversation(conversation_id: str,
     # 构建请求数据
     payload = request.model_dump(exclude_unset=True)
     payload['user']=current_user;
-
+    
     # 调用后端服务
     response =  await backend_client.async_post(
         endpoint=f"/conversations/{conversation_id}/name", json_data=payload
@@ -183,3 +186,39 @@ async def get_conversation_messages(
         raise
     except Exception as unhandled_ex:
         raise ServiceException(message="系统发生意外错误") from unhandled_ex
+
+
+
+@ConversationController.delete("/{conversation_id}")
+async def delete_conversations(
+    conversation_id: str = Path(..., description="对话ID"),
+    current_user:str=Depends(AuthService.get_current_user)
+):
+    """
+    删除对话
+    """
+
+    # 验证对话ID是否为UUID格式
+    try:
+        uuid_obj = uuid.UUID(conversation_id, version=4)
+    except ValueError:
+        raise ServiceException(message="对话ID格式错误")
+
+    payload={'user':current_user}
+
+    try:
+    # 调用后端服务
+        response =  await backend_client.async_delete(
+            endpoint=f"/conversations/{conversation_id}", json_data=payload
+        )
+    except Exception as e:
+        raise ServiceException(message="服务暂时不可用，请稍后重试") from e
+
+    print(response)
+
+    if not response.get("success"):
+        raise ServiceException(message=response.get("data", "接口请求失败").get("message", "错误"))
+    
+    print(response)
+    # 转换并返回标准响应格式
+    return ResponseUtil.success(data=response["data"])           

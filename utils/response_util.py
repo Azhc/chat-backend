@@ -190,6 +190,34 @@ class ResponseUtil:
 
         if data is not None:
             result['data'] = data
+        if dict_content is not None:
+            result.update(dict_content)
+
+        result.update({'success': False, 'time': datetime.now()})
+
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+    
+
+    @classmethod
+    def not_found(
+        cls,
+        msg: str = '资源不存在',
+        data: Optional[Any] = None,
+        rows: Optional[Any] = None,
+        dict_content: Optional[Dict] = None,
+        model_content: Optional[BaseModel] = None,
+    ) -> Response:
+        """
+        404资源不存在响应方法
+
+        :param msg: 可选，自定义错误响应信息
+        :param data: 可选，错误响应结果中属性为data的值
+        :return: 错误响应结果
+        """
+        result = {'code': HttpStatusConstant.NOT_FOUND, 'msg': msg}
+
+        if data is not None:
+            result['data'] = data
 
         result.update({'success': False, 'time': datetime.now()})
 
