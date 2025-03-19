@@ -8,7 +8,7 @@ class HttpClient:
         self,
         base_url: str = "",
         default_headers: Optional[Dict[str, str]] = None,
-        timeout: int = 5,
+        timeout: int = 30,
         verify_ssl: bool = True,
         http2: bool = False
     ):

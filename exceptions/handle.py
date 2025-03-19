@@ -25,6 +25,8 @@ def handle_exception(app: FastAPI):
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             return ResponseUtil.not_found(msg="资源不存在")
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            return ResponseUtil.unauthorized()
         # 其他HTTP异常可统一处理或返回默认错误
         return ResponseUtil.error(msg=exc.detail)
     

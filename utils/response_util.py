@@ -71,7 +71,7 @@ class ResponseUtil:
     @classmethod
     def unauthorized(
         cls,
-        msg: str = '登录信息已过期，访问系统资源失败',
+        msg: str = '登录信息失效',
         data: Optional[Any] = None,
         rows: Optional[Any] = None,
         dict_content: Optional[Dict] = None,
@@ -100,7 +100,7 @@ class ResponseUtil:
 
         result.update({'success': False, 'time': datetime.now()})
 
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder(result))
 
     @classmethod
     def forbidden(

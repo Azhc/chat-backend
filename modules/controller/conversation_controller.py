@@ -32,7 +32,7 @@ async def get_conversations(
     - 默认返回最近的20条
     - 支持分页和排序
     """
-
+    
     if limit is None or limit =='':
         raise 
 
@@ -51,6 +51,7 @@ async def get_conversations(
     # 构造查询参数
     params = {"user": current_user, "last_id": last_id, "limit": limit, "sort_by": sort_by}
 
+    print(params);
     # 调用后端服务
     response = await backend_client.async_get(
         endpoint="/conversations",
@@ -115,7 +116,7 @@ async def rename_conversation(conversation_id: str,
     # 构建请求数据
     payload = request.model_dump(exclude_unset=True)
     payload['user']=current_user;
-    
+
     # 调用后端服务
     response =  await backend_client.async_post(
         endpoint=f"/conversations/{conversation_id}/name", json_data=payload
@@ -214,11 +215,9 @@ async def delete_conversations(
     except Exception as e:
         raise ServiceException(message="服务暂时不可用，请稍后重试") from e
 
-    print(response)
 
     if not response.get("success"):
         raise ServiceException(message=response.get("data", "接口请求失败").get("message", "错误"))
     
-    print(response)
     # 转换并返回标准响应格式
-    return ResponseUtil.success(data=response["data"])           
+    return ResponseUtil.success(data=response["data"])

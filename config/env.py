@@ -14,6 +14,7 @@ class SsoConfig(BaseSettings):
     client_id:str='OAUTH_baixiaosheng_test'
     client_secret:str='07f9c099239149bea7e4f58795017d30'
     redirect_url:str='http://10.2.19.61:8001/auth/getUserByCode'
+    user_center_get_user_url:str='http://internalapi.scpgroup.com.cn/ipmp-cloud/amp-cloud-keycloak-auth/v1/admin/realm'
 
 class DifyConfig(BaseSettings):
 
@@ -48,6 +49,14 @@ class JwtConfig(BaseSettings):
     jwt_expire_minutes: int = 7*24*60
 
 
+class WorkWechatConfig(BaseSettings):
+    """
+    企微配置
+    """ 
+    work_wechat_url:str='https://t-vv-light.vanke.com'
+    work_wechat_corpid:str='ww268f06f257bc4257'
+    work_wechat_secret:str='eouhnAtZgIioaMRjsMxhmvKRomEsYthg'
+    work_wechat_appid:str=275
 
 class GetConfig:
     """
@@ -89,6 +98,14 @@ class GetConfig:
         """
         # 实例化应用配置模型
         return DifyConfig()
+    
+
+    @lru_cache()
+    def get_workwechat_config(self):
+        """
+        获取企微配置
+        """
+        return WorkWechatConfig();
     
     @staticmethod
     def parse_cli_args():
@@ -134,3 +151,6 @@ SsoConfig =get_config.get_sso_config()
 JwtConfig = get_config.get_jwt_config()
 #Dify配置获取
 DifyConfig = get_config.get_dify_config()
+#企微配置获取
+WorkWechatConfig = get_config.get_workwechat_config()
+
